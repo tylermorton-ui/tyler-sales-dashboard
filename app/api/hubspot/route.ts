@@ -15,11 +15,10 @@ export async function GET() {
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
 
-    const [pipelines, deals, newLeads] = await Promise.all([
-      fetchPipelines(),
-      fetchDeals(),
-      countNewContacts(weekStart),
-    ]);
+    // Search API calls run sequentially to avoid HubSpot's per-second rate limit
+    const pipelines = await fetchPipelines();
+    const deals = await fetchDeals();
+    const newLeads = await countNewContacts(weekStart);
 
     const stageLabels: Record<string, string> = {};
     const closedWonIds = new Set<string>();

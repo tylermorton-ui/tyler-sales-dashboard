@@ -61,6 +61,7 @@ export async function fetchDeals(): Promise<Deal[]> {
     const json = await res.json();
     deals.push(...(json.results as Deal[]));
     after = json.paging?.next?.after;
+    if (after) await new Promise((r) => setTimeout(r, 300));
   } while (after && deals.length < 500);
 
   return deals;
