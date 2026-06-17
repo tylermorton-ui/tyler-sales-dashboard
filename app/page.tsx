@@ -22,6 +22,7 @@ type CalendarData = {
   upcoming: Array<{ id: string; summary: string; start: string; end: string; attendees: number }>;
   totalThisWeek: number;
   error?: string;
+  notConnected?: boolean;
 };
 
 function fmt(v: number) {
@@ -91,11 +92,18 @@ export default function Page() {
             <strong>HubSpot:</strong> {hs.error}
           </div>
         )}
-        {cal?.error && (
+        {cal?.notConnected ? (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-center justify-between">
+            <span>Google Calendar isn&apos;t connected yet — calendar events won&apos;t show until you set it up.</span>
+            <a href="/setup" className="ml-4 flex-shrink-0 font-semibold underline hover:text-blue-900">
+              Set up now →
+            </a>
+          </div>
+        ) : cal?.error ? (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             <strong>Google Calendar:</strong> {cal.error}
           </div>
-        )}
+        ) : null}
 
         {/* Metric cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

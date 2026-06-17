@@ -5,8 +5,8 @@ import { startOfWeek, addDays } from 'date-fns';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  if (!process.env.GOOGLE_REFRESH_TOKEN) {
-    return NextResponse.json({ error: 'Google credentials not set in .env.local' }, { status: 503 });
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
+    return NextResponse.json({ error: 'Google Calendar not connected.', notConnected: true }, { status: 503 });
   }
 
   try {
