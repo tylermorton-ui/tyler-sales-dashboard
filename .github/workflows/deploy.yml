@@ -1,0 +1,15 @@
+name: Deploy to Coolify
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deployment
+        run: |
+          curl --fail --silent --show-error \
+            --request GET \
+            "https://coolify.designli.io/api/v1/deploy?uuid=izaymj3p4tdyneg290rouh4w&force=false" \
+            --header "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
