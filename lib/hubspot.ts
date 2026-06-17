@@ -41,17 +41,12 @@ export async function fetchPipelines(): Promise<Pipeline[]> {
   return json.results as Pipeline[];
 }
 
-export async function fetchDeals(): Promise<Deal[]> {
+async function searchDeals(filters: unknown[], properties = DEAL_PROPS): Promise<Deal[]> {
   const deals: Deal[] = [];
   let after: string | undefined;
-
   do {
-    const body: Record<string, unknown> = {
-      properties: ['dealname', 'dealstage', 'amount', 'closedate', 'createdate', 'pipeline'],
-      limit: 100,
-    };
+    const body: Record<string, unknown> = { filterGroups: [{ filters }], properties, limit: 100 };
     if (after) body.after = after;
-
     const res = await fetch(`${BASE}/crm/v3/objects/deals/search`, {
       method: 'POST',
       headers: authHeaders(),
@@ -63,8 +58,20 @@ export async function fetchDeals(): Promise<Deal[]> {
     after = json.paging?.next?.after;
     if (after) await new Promise((r) => setTimeout(r, 300));
   } while (after && deals.length < 500);
-
   return deals;
+}
+
+const DEAL_PROPS = ['dealname', 'dealstage', 'amount', 'closedate', 'createdate', 'pipeline'];
+
+export async function fetchOpenDeals(): Promise<Deal[]> {
+  return searchDeals([{ propertyName: 'hs_is_closed', operator: 'EQ', value: 'false' }]);
+}
+
+export async function fetchClosedWonDeals(since: Date): Promise<Deal[]> {
+  return searchDeals([
+    { propertyName: 'dealstage', operator: 'EQ', value: 'closedwon' },
+    { propertyName: 'closedate', operator: 'GTE', value: since.getTime().toString() },
+  ]);
 }
 
 export async function countNewContacts(since: Date): Promise<number> {

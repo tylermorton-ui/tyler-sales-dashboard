@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchPipelines, fetchDeals, countNewContacts } from '@/lib/hubspot';
+import { fetchPipelines, fetchOpenDeals, fetchClosedWonDeals, countNewContacts } from '@/lib/hubspot';
 import { startOfWeek, endOfWeek, startOfMonth, isWithinInterval } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,12 @@ export async function GET() {
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
 
-    // Search API calls run sequentially to avoid HubSpot's per-second rate limit
-    const pipelines = await fetchPipelines();
-    const deals = await fetchDeals();
-    const newLeads = await countNewContacts(weekStart);
+    const [pipelines, openDeals, closedWonDeals, newLeads] = await Promise.all([
+      fetchPipelines(),
+      fetchOpenDeals(),
+      fetchClosedWonDeals(monthStart),
+      countNewContacts(weekStart),
+    ]);
 
     const stageLabels: Record<string, string> = {};
     const closedWonIds = new Set<string>();
@@ -34,9 +36,6 @@ export async function GET() {
       }
     }
 
-    let closedWonWeek = 0;
-    let closedWonMonth = 0;
-
     const primaryPipeline = pipelines[0];
     const stageOrder: Record<string, number> = {};
     if (primaryPipeline) {
@@ -45,21 +44,21 @@ export async function GET() {
       });
     }
 
+    // Tally closed-won revenue from the targeted query
+    let closedWonWeek = 0;
+    let closedWonMonth = 0;
+    for (const deal of closedWonDeals) {
+      const value = parseFloat(deal.properties.amount ?? '0') || 0;
+      const cd = deal.properties.closedate ? new Date(deal.properties.closedate) : null;
+      if (cd && isWithinInterval(cd, { start: weekStart, end: weekEnd })) closedWonWeek += value;
+      if (cd && isWithinInterval(cd, { start: monthStart, end: now })) closedWonMonth += value;
+    }
+
+    // Build pipeline from open deals only
     const stageMap: Record<string, { label: string; count: number; value: number; order: number }> = {};
-
-    for (const deal of deals) {
-      const { dealstage, amount, closedate } = deal.properties;
-      const value = parseFloat(amount ?? '0') || 0;
-
-      if (closedWonIds.has(dealstage)) {
-        const cd = closedate ? new Date(closedate) : null;
-        if (cd && isWithinInterval(cd, { start: weekStart, end: weekEnd })) closedWonWeek += value;
-        if (cd && isWithinInterval(cd, { start: monthStart, end: now })) closedWonMonth += value;
-        continue;
-      }
-
+    for (const deal of openDeals) {
+      const { dealstage, amount } = deal.properties;
       if (closedLostIds.has(dealstage)) continue;
-
       if (!stageMap[dealstage]) {
         stageMap[dealstage] = {
           label: stageLabels[dealstage] ?? dealstage,
@@ -69,7 +68,7 @@ export async function GET() {
         };
       }
       stageMap[dealstage].count += 1;
-      stageMap[dealstage].value += value;
+      stageMap[dealstage].value += parseFloat(amount ?? '0') || 0;
     }
 
     const pipeline = Object.values(stageMap).sort((a, b) => a.order - b.order);
