@@ -63,14 +63,19 @@ async function searchDeals(filters: unknown[], properties = DEAL_PROPS): Promise
 
 const DEAL_PROPS = ['dealname', 'dealstage', 'amount', 'closedate', 'createdate', 'pipeline'];
 
+// Only count records owned by this HubSpot user (Tyler Morton by default).
+const OWNER_ID = process.env.HUBSPOT_OWNER_ID ?? '535372715';
+const ownerFilter = { propertyName: 'hubspot_owner_id', operator: 'EQ', value: OWNER_ID };
+
 export async function fetchOpenDeals(): Promise<Deal[]> {
-  return searchDeals([{ propertyName: 'hs_is_closed', operator: 'EQ', value: 'false' }]);
+  return searchDeals([{ propertyName: 'hs_is_closed', operator: 'EQ', value: 'false' }, ownerFilter]);
 }
 
 export async function fetchClosedWonDeals(since: Date): Promise<Deal[]> {
   return searchDeals([
     { propertyName: 'dealstage', operator: 'EQ', value: 'closedwon' },
     { propertyName: 'closedate', operator: 'GTE', value: since.getTime().toString() },
+    ownerFilter,
   ]);
 }
 
@@ -87,6 +92,7 @@ export async function countNewContacts(since: Date): Promise<number> {
               operator: 'GTE',
               value: since.getTime().toString(),
             },
+            ownerFilter,
           ],
         },
       ],
